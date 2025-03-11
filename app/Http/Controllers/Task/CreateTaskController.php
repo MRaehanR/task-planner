@@ -24,7 +24,7 @@ class CreateTaskController extends Controller
     public function __invoke(CreateTaskRequest $request)
     {
         $params = $request->all();
-        $result = $this->taskService->getTasks($params);
+        $result = $this->taskService->createTask($params);
 
         return Response::success('Create Tasks Successfully', HttpFoundationResponse::HTTP_CREATED, $result);
     }
