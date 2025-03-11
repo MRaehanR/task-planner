@@ -2,11 +2,9 @@
 
 namespace App\Http\Requests\Task;
 
-use App\Enum\DayOfWeek;
 use App\Http\Requests\Request;
-use Illuminate\Validation\Rules\Enum;
 
-class GetTasksRequest extends Request
+class CreateTaskRequest extends Request
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,9 +21,6 @@ class GetTasksRequest extends Request
      */
     public function rules(): array
     {
-        return [
-            'day' => ['nullable', new Enum(DayOfWeek::class)],
-            'is_recurring' => 'nullable|boolean'
-        ];
+        return [];
     }
 }

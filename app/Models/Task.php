@@ -13,8 +13,9 @@ class Task extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'status' => DayOfWeek::class,
+        // 'day_of_week' => DayOfWeek::class,
         'all_day' => 'boolean',
-        'is_reccurring' => 'boolean',
+        'is_recurring' => 'boolean',
+        'is_fixed' => 'boolean',
     ];
 }

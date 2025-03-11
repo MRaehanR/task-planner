@@ -13,12 +13,12 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::factory(10)->create();
-
         User::factory()->create([
             'username' => 'user',
             'phone' => '085868525150',
             'password' => 'password'
         ]);
+
+        User::factory(10)->create();
     }
 }

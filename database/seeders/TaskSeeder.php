@@ -15,8 +15,8 @@ class TaskSeeder extends Seeder
     {
         Task::factory(10)->create();
 
-        Task::factory(1, [
-            'start_time' => date('Y-m-d H:i:s', ),
-        ]);
+        Task::factory(10, [
+            'user_id' => 1,
+        ])->create();
     }
 }

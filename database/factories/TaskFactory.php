@@ -20,7 +20,7 @@ class TaskFactory extends Factory
     public function definition(): array
     {
         $start_time = $this->faker->dateTimeBetween('-5 days', '+5 days');
-        $end_time = Carbon::instance($start_time)->addHours(rand(1, 120));
+        $end_time = Carbon::instance($start_time)->addHours(rand(1, 3));
         $deadline = Carbon::instance($end_time)->addHours(rand(1, 240));
 
         return [
@@ -31,7 +31,7 @@ class TaskFactory extends Factory
             'start_time' => $start_time,
             'end_time' => $end_time,
             'all_day' => rand(0, 1),
-            'is_reccurring' => rand(0, 1),
+            'is_recurring' => rand(0, 1),
             'is_fixed' => rand(0, 1),
             'deadline' => $deadline
         ];
