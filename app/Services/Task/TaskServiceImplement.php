@@ -241,7 +241,7 @@ class TaskServiceImplement implements TaskService
 
     private function adjustToCurrentWeek($time, $dayOfWeek, $currentDate = null)
     {
-        $currentDate = $currentDate ?? Carbon::now();
+        $currentDate = Carbon::parse($currentDate) ?? Carbon::now();
         $currentWeekDay = $currentDate->dayOfWeek;
         $targetDay = Carbon::parse($dayOfWeek)->dayOfWeek;
         $daysDifference = $targetDay - $currentWeekDay;
