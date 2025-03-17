@@ -170,7 +170,8 @@ class TaskServiceImplement implements TaskService
 
         try {
             $response = $this->openAIClient->chat()->create([
-                'model' => 'gpt-4o-mini-2024-07-18',
+                // 'model' => 'gpt-4o-mini-2024-07-18',
+                'model' => 'gpt-4o-2024-08-06',
                 'messages' => [
                     ['role' => 'system', 'content' => 'You are an AI scheduling assistant that helps optimize task scheduling while ensuring all tasks fit within their constraints.'],
                     ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
