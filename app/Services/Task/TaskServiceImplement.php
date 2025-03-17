@@ -181,7 +181,7 @@ class TaskServiceImplement implements TaskService
                     ['role' => 'system', 'content' => '1. **Try moving the task later on the same day.**'],
                     ['role' => 'system', 'content' => '2. **If no available slot, move it to the next available day before the deadline.**'],
                     ['role' => 'system', 'content' => '3. **If no slot is available before the deadline, return an error message.**'],
-                    ['role' => 'system', 'content' => '⚠️ **Never allow two non-fixed tasks to overlap. You MUST resolve all conflicts.**'],
+                    ['role' => 'system', 'content' => '**Never allow two non-fixed tasks to overlap. You MUST resolve all conflicts.**'],
                     ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
                 ],
                 'functions' => [$functionDefinition],
