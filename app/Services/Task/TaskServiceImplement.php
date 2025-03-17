@@ -172,21 +172,28 @@ class TaskServiceImplement implements TaskService
             $response = $this->openAIClient->chat()->create([
                 'model' => 'gpt-4o-mini-2024-07-18',
                 'messages' => [
-                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that must strictly resolve all scheduling conflicts.'],
-                    ['role' => 'system', 'content' => 'You **must never modify** any task where `is_fixed = true`.'],
-                    ['role' => 'system', 'content' => 'If a non-fixed task (`is_fixed = false`) conflicts with a fixed task (`is_fixed = true`), you **must move the non-fixed task** to resolve the conflict.'],
-                    ['role' => 'system', 'content' => 'If two non-fixed tasks conflict, **you must adjust one of them to remove the conflict**.'],
-                    ['role' => 'system', 'content' => 'You can modify `start_time`, `end_time`, and `day_of_week` of non-fixed tasks.'],
-                    ['role' => 'system', 'content' => 'Conflict resolution steps:'],
-                    ['role' => 'system', 'content' => '1. **Try moving the task later on the same day.**'],
-                    ['role' => 'system', 'content' => '2. **If no available slot, move it to the next available day before the deadline.**'],
-                    ['role' => 'system', 'content' => '3. **If no slot is available before the deadline, return an error message.**'],
-                    ['role' => 'system', 'content' => '**Never allow two non-fixed tasks to overlap. You MUST resolve all conflicts.**'],
+                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that helps optimize task scheduling while ensuring all tasks fit within their constraints.'],
+                    ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
+                    ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and create a more efficient schedule.'],
+                    ['role' => 'system', 'content' => 'If a non-fixed task conflicts with a fixed task, **you must reschedule the non-fixed task** to remove the conflict.'],
+                    ['role' => 'system', 'content' => 'If two non-fixed tasks conflict, **you should adjust one or both of them** to resolve the overlap.'],
+                    ['role' => 'system', 'content' => 'You can modify `start_time`, `end_time`, and `day_of_week` of non-fixed tasks as needed.'],
+                    ['role' => 'system', 'content' => 'For tasks where `is_recurring = false` and `is_fixed = false`, `start_time` and `end_time` indicate an available range where the task can be scheduled.'],
+                    ['role' => 'system', 'content' => 'You may **adjust the task’s time within or slightly outside** its given range if necessary, as long as it remains reasonable for the user.'],
+                    ['role' => 'system', 'content' => 'You may **move the task to a different day** if needed, but it must be scheduled **before the deadline**.'],
+                    ['role' => 'system', 'content' => 'When resolving conflicts, prioritize efficiency and user convenience.'],
+                    ['role' => 'system', 'content' => 'Conflict resolution approach:'],
+                    ['role' => 'system', 'content' => '1. **First, try adjusting the task’s time within the available range on the same day.**'],
+                    ['role' => 'system', 'content' => '2. **If needed, consider extending slightly beyond the given range, but keep it reasonable.**'],
+                    ['role' => 'system', 'content' => '3. **If no good slot is available on the same day, move it to another day before the deadline.**'],
+                    ['role' => 'system', 'content' => '4. **If rescheduling within constraints is impossible, return an error message.**'],
+                    ['role' => 'system', 'content' => '**Always aim to create a well-balanced, conflict-free schedule that is practical for the user.**'],
                     ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
                 ],
                 'functions' => [$functionDefinition],
                 'function_call' => 'auto',
             ]);
+
 
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
