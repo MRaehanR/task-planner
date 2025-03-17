@@ -170,31 +170,34 @@ class TaskServiceImplement implements TaskService
 
         try {
             $response = $this->openAIClient->chat()->create([
-                // 'model' => 'gpt-4o-mini-2024-07-18',
                 'model' => 'gpt-4o-2024-08-06',
                 'messages' => [
-                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that helps optimize task scheduling while ensuring all tasks fit within their constraints.'],
+                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that helps create an optimized and balanced schedule for the user. Your goal is to prevent overload and ensure a well-paced, conflict-free plan.'],
                     ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
-                    ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and create a more efficient schedule.'],
+                    ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and improve schedule balance.'],
                     ['role' => 'system', 'content' => 'If a non-fixed task conflicts with a fixed task, **you must reschedule the non-fixed task** to remove the conflict.'],
                     ['role' => 'system', 'content' => 'If two non-fixed tasks conflict, **you should adjust one or both of them** to resolve the overlap.'],
                     ['role' => 'system', 'content' => 'You can modify `start_time`, `end_time`, and `day_of_week` of non-fixed tasks as needed.'],
-                    ['role' => 'system', 'content' => 'For tasks where `is_recurring = false` and `is_fixed = false`, `start_time` and `end_time` indicate an available range where the task can be scheduled.'],
-                    ['role' => 'system', 'content' => 'You may **adjust the task’s time within or slightly outside** its given range if necessary, as long as it remains reasonable for the user.'],
-                    ['role' => 'system', 'content' => 'You may **move the task to a different day** if needed, but it must be scheduled **before the deadline**.'],
-                    ['role' => 'system', 'content' => 'When resolving conflicts, prioritize efficiency and user convenience.'],
-                    ['role' => 'system', 'content' => 'Conflict resolution approach:'],
-                    ['role' => 'system', 'content' => '1. **First, try adjusting the task’s time within the available range on the same day.**'],
-                    ['role' => 'system', 'content' => '2. **If needed, consider extending slightly beyond the given range, but keep it reasonable.**'],
-                    ['role' => 'system', 'content' => '3. **If no good slot is available on the same day, move it to another day before the deadline.**'],
-                    ['role' => 'system', 'content' => '4. **If rescheduling within constraints is impossible, return an error message.**'],
-                    ['role' => 'system', 'content' => '**Always aim to create a well-balanced, conflict-free schedule that is practical for the user.**'],
+                    ['role' => 'system', 'content' => 'For tasks where `is_recurring = false` and `is_fixed = false`, `start_time` and `end_time` represent a suggested range, but you may adjust them if it helps improve the overall balance.'],
+                    ['role' => 'system', 'content' => 'You may **move tasks to a different day**, but they must be scheduled **before the deadline**.'],
+                    ['role' => 'system', 'content' => '💡 **Ensure there are adequate breaks between tasks to prevent exhaustion.** Avoid scheduling tasks back-to-back unless absolutely necessary.'],
+                    ['role' => 'system', 'content' => '💡 **Prioritize a balanced workload across days.** If a certain day is too packed, distribute tasks more evenly throughout the available days.'],
+                    ['role' => 'system', 'content' => '💡 **If a task has flexibility, schedule it at a time that makes the overall day feel less overwhelming.**'],
+                    ['role' => 'system', 'content' => '### Conflict resolution approach:'],
+                    ['role' => 'system', 'content' => '1. **First, try adjusting the task’s time within the available range on the same day while ensuring a comfortable gap between tasks.**'],
+                    ['role' => 'system', 'content' => '2. **If needed, move the task slightly outside the range for better balance, as long as it remains practical.**'],
+                    ['role' => 'system', 'content' => '3. **If no good slot is available on the same day, move it to another day before the deadline, ensuring an even workload distribution.**'],
+                    ['role' => 'system', 'content' => '4. **If rescheduling is impossible within constraints, return an error message.**'],
+                    ['role' => 'system', 'content' => '### Key goals:'],
+                    ['role' => 'system', 'content' => '- Ensure tasks do not feel rushed or packed too closely.'],
+                    ['role' => 'system', 'content' => '- Distribute workload evenly across available days.'],
+                    ['role' => 'system', 'content' => '- Allow breathing space between tasks for breaks and focus shifts.'],
+                    ['role' => 'system', 'content' => '**Create a practical, well-paced schedule that helps the user stay productive without burnout.**'],
                     ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
                 ],
                 'functions' => [$functionDefinition],
                 'function_call' => 'auto',
             ]);
-
 
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
