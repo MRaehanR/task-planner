@@ -20,10 +20,11 @@ return new class extends Migration
             $table->enum('day_of_week', [DayOfWeek::values()]);
             $table->time('start_time');
             $table->time('end_time')->nullable();
+            $table->boolean('is_completed')->nullable();
             $table->boolean('all_day')->default(false);
             $table->boolean('is_recurring')->default(false);
             $table->boolean('is_fixed')->default(false);
-            $table->time('deadline');
+            $table->time('deadline')->nullable();
             $table->timestamps();
         });
     }

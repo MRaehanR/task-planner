@@ -25,7 +25,9 @@ class GetTasksRequest extends Request
     {
         return [
             'day' => ['nullable', new Enum(DayOfWeek::class)],
-            'is_recurring' => 'nullable|boolean'
+            'is_recurring' => 'nullable|boolean',
+            'is_fixed' => 'nullable|boolean',
+            'current_date' => 'nullable|date'
         ];
     }
 }

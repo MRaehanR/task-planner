@@ -13,10 +13,13 @@ class TaskSeeder extends Seeder
      */
     public function run(): void
     {
-        Task::factory(10)->create();
+        Task::factory()->count(10)->fixedAndRecurring()->create();
+        Task::factory()->count(10)->notFixedAndNotRecurring()->create();
+        Task::factory()->count(10)->notFixedButRecurring()->create();
 
-        Task::factory(10, [
+        Task::factory(1, [
             'user_id' => 1,
+            'is_fixed' => true
         ])->create();
     }
 }

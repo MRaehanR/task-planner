@@ -38,9 +38,9 @@ class TaskServiceImplement implements TaskService
 
         $tasks = $query->get();
 
-        return $tasks->map(function ($task) {
-            $start_time = $task->is_recurring ? $this->adjustToCurrentWeek($task->start_time, $task->day_of_week) : $task->start_time;
-            $end_time = $task->is_recurring ? $this->adjustToCurrentWeek($task->end_time, $task->day_of_week) : $task->end_time;
+        return $tasks->map(function ($task) use ($params) {
+            $start_time = $task->is_recurring ? $this->adjustToCurrentWeek($task->start_time, $task->day_of_week, $params['current_date'] ?? null) : $task->start_time;
+            $end_time = $task->is_recurring ? $this->adjustToCurrentWeek($task->end_time, $task->day_of_week, $params['current_date'] ?? null) : $task->end_time;
 
             return new TaskDTO(
                 id: $task->id,
@@ -50,6 +50,7 @@ class TaskServiceImplement implements TaskService
                 start_time: $start_time,
                 end_time: $end_time,
                 all_day: $task->all_day,
+                is_completed: $task->is_completed,
                 is_recurring: $task->is_recurring,
                 is_fixed: $task->is_fixed,
                 deadline: $task->deadline,
@@ -80,6 +81,7 @@ class TaskServiceImplement implements TaskService
             start_time: $start_time,
             end_time: $end_time,
             all_day: $task->all_day,
+            is_completed: $task->is_completed,
             is_recurring: $task->is_recurring,
             is_fixed: $task->is_fixed,
             deadline: $task->deadline,
@@ -116,6 +118,7 @@ class TaskServiceImplement implements TaskService
                 'start_time' => $task->start_time,
                 'end_time' => $task->end_time,
                 'all_day' => $task->all_day,
+                'is_completed' => $task->is_completed,
                 'is_recurring' => $task->is_recurring,
                 'is_fixed' => $task->is_fixed,
                 'deadline' => $task->deadline,
@@ -125,11 +128,12 @@ class TaskServiceImplement implements TaskService
         $tasksData[] = [
             'id' => null,
             'title' => $params['title'],
-            'desc' => $params['desc'],
+            'desc' => $params['desc'] ?? null,
             'day_of_week' => $params['day_of_week'],
             'start_time' => $params['start_time'],
-            'end_time' => $params['end_time'],
+            'end_time' => $params['end_time'] ?? null,
             'all_day' => $params['all_day'],
+            'is_completed' => $params['is_completed'] ?? null,
             'is_recurring' => $params['is_recurring'],
             'is_fixed' => $params['is_fixed'],
             'deadline' => $params['deadline'] ?? null,
@@ -153,6 +157,7 @@ class TaskServiceImplement implements TaskService
                                 'start_time' => ['type' => 'string'],
                                 'end_time' => ['type' => 'string'],
                                 'all_day' => ['type' => 'boolean'],
+                                'is_completed' => ['type' => 'boolean'],
                                 'is_recurring' => ['type' => 'boolean'],
                                 'is_fixed' => ['type' => 'boolean'],
                                 'deadline' => ['type' => 'string'],
@@ -167,15 +172,20 @@ class TaskServiceImplement implements TaskService
             $response = $this->openAIClient->chat()->create([
                 'model' => 'gpt-4o-mini-2024-07-18',
                 'messages' => [
-                    ['role' => 'system', 'content' => 'You are an AI that schedules tasks in order to be more efficient and returns valid JSON.'],
-                    ['role' => 'system', 'content' => 'You can only modify the date, the day_of_week, and the time not the title, desc, all_day, is_recurring, is_fixed, and deadline value.'],
-                    ['role' => 'system', 'content' => 'You can modify the date, the day_of_week, and the time of each task that has false in is_fixed but You cannot modify tasks that have true in is_fixed. For example, if there is a clash of schedules or there are two task that accour at the same time, you can change the time, day, or date task that is false in is_fixed to make no more clashes schedules.'],
-                    ['role' => 'system', 'content' => 'You can see there is a deadline, arrange the schedule to make it easier to finish the task before the deadline.'],
+                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant. Your task is to resolve all schedule conflicts.'],
+                    ['role' => 'system', 'content' => '**Rules for scheduling:**'],
+                    ['role' => 'system', 'content' => 'Fixed tasks (`is_fixed = true`) must NOT be changed.'],
+                    ['role' => 'system', 'content' => 'If a flexible task (`is_fixed = false`) conflicts with a fixed task, move the flexible task.'],
+                    ['role' => 'system', 'content' => 'If two or more flexible tasks conflict, move one of them to another available slot before its deadline.'],
+                    ['role' => 'system', 'content' => 'If a task cannot fit in the current day, move it to the next available day before its deadline.'],
+                    ['role' => 'system', 'content' => '**Never allow any overlapping tasks.**'],
+                    ['role' => 'system', 'content' => 'All conflicts must be resolved. You must never leave tasks overlapping.'],
                     ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
                 ],
                 'functions' => [$functionDefinition],
                 'function_call' => 'auto',
             ]);
+
 
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
@@ -197,6 +207,7 @@ class TaskServiceImplement implements TaskService
                         'start_time' => $scheduledTask['start_time'],
                         'end_time' => $scheduledTask['end_time'],
                         'all_day' => $scheduledTask['all_day'],
+                        'is_completed' => $scheduledTask['is_completed'],
                         'is_recurring' => $scheduledTask['is_recurring'],
                         'is_fixed' => $scheduledTask['is_fixed'],
                         'deadline' => $scheduledTask['deadline'] ?? null,
@@ -214,6 +225,7 @@ class TaskServiceImplement implements TaskService
                     start_time: $task->start_time,
                     end_time: $task->end_time,
                     all_day: $task->all_day,
+                    is_completed: $task->is_completed,
                     is_recurring: $task->is_recurring,
                     is_fixed: $task->is_fixed,
                     deadline: $task->deadline,
@@ -227,9 +239,9 @@ class TaskServiceImplement implements TaskService
         }
     }
 
-    private function adjustToCurrentWeek($time, $dayOfWeek)
+    private function adjustToCurrentWeek($time, $dayOfWeek, $currentDate = null)
     {
-        $currentDate = Carbon::now();
+        $currentDate = $currentDate ?? Carbon::now();
         $currentWeekDay = $currentDate->dayOfWeek;
         $targetDay = Carbon::parse($dayOfWeek)->dayOfWeek;
         $daysDifference = $targetDay - $currentWeekDay;
