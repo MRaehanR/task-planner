@@ -33,7 +33,7 @@ Route::middleware('auth:sanctum')->prefix('task')->group(function () {
     Route::get('/{id}', GetTaskByIdController::class);
     Route::post('/', CreateTaskController::class);
     Route::delete('/{id}', DeleteTaskByIdController::class);
-    Route::get('/rearrange', RearrangeTaskByAI::class);
+    Route::post('/rearrange', RearrangeTaskByAI::class);
 });
 
 Route::get('/tasktest', function () {
