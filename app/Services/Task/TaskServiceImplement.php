@@ -291,33 +291,6 @@ class TaskServiceImplement implements TaskService
                     ['role' => 'system', 'content' => 'If a non-fixed task conflicts with a fixed task, **you must reschedule the non-fixed task** to remove the conflict.'],
                     ['role' => 'system', 'content' => 'If two non-fixed tasks conflict, **you should adjust one or both of them** to resolve the overlap.'],
                     ['role' => 'system', 'content' => 'You can modify `start_time`, `end_time`, and `day_of_week` of non-fixed tasks as needed.'],
-
-                    // **Aturan untuk tugas yang tidak berulang & tidak fixed**
-                    ['role' => 'system', 'content' => 'For tasks where `is_recurring = false` and `is_fixed = false`:'],
-                    ['role' => 'system', 'content' => '- You **may modify start_time, end_time, and day_of_week**, but with restrictions.'],
-                    ['role' => 'system', 'content' => '- The new `start_time` **must not be earlier** than the original `start_time`.'],
-                    ['role' => 'system', 'content' => '- The new `end_time` **must not exceed the deadline** of the task.'],
-                    ['role' => 'system', 'content' => '- You may move the task to a **different day**, but only if it remains within the allowed deadline.'],
-
-                    ['role' => 'system', 'content' => '💡 **Ensure tasks do not overlap under any circumstances.** All tasks must have a clear, separate time slot.'],
-                    ['role' => 'system', 'content' => '💡 **Always insert adequate breaks between tasks** to allow for rest and transitions. Aim for at least **15-30 minutes** between tasks.'],
-                    ['role' => 'system', 'content' => '💡 **Distribute tasks evenly across available days** instead of cramming multiple tasks into a single day.'],
-                    ['role' => 'system', 'content' => '💡 **If a task has flexibility, position it at a time that makes the overall day feel less overwhelming.**'],
-
-                    // **Pendekatan Penyelesaian Konflik**
-                    ['role' => 'system', 'content' => '### Conflict resolution approach:'],
-                    ['role' => 'system', 'content' => '1. **First, try adjusting the task’s time later in the available range on the same day while ensuring a comfortable gap between tasks.**'],
-                    ['role' => 'system', 'content' => '2. **If necessary, extend the end time slightly, but never beyond the deadline.**'],
-                    ['role' => 'system', 'content' => '3. **If no good slot is available on the same day, move it to another day before the deadline, ensuring workload is balanced.**'],
-                    ['role' => 'system', 'content' => '4. **If no valid slot is found within the deadline, return an error message.**'],
-
-                    ['role' => 'system', 'content' => '### Key goals:'],
-                    ['role' => 'system', 'content' => '- **Tasks must never overlap.**'],
-                    ['role' => 'system', 'content' => '- **Each task should have at least 15-30 minutes of break time before the next one.**'],
-                    ['role' => 'system', 'content' => '- **Spread tasks evenly across multiple days to avoid overload.**'],
-                    ['role' => 'system', 'content' => '- **Ensure the schedule feels practical, allowing for productivity without stress.**'],
-                    ['role' => 'system', 'content' => '**Create a well-paced, human-friendly schedule that helps the user stay productive and focused without burnout.**'],
-
                     ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
                 ],
                 'functions' => [$functionDefinition],
