@@ -286,57 +286,71 @@ class TaskServiceImplement implements TaskService
                 'model' => 'gpt-4o-2024-08-06',
                 'messages' => [
                     ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow.'],
-
-                    ['role' => 'system', 'content' => 'You **must not modify** any task where is_fixed = true.'],
-
-                    ['role' => 'system', 'content' => 'For tasks with is_fixed = false, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
-
-                    ['role' => 'system', 'content' => '### Checking for Overlapping Tasks:'],
-
-                    ['role' => 'system', 'content' => 'You **must always check for overlapping tasks** after making any modifications to ensure no conflicts remain. A conflict is considered overlapping if:  
-                    ```php
-                    ($task1["id"] !== $task2["id"] && $task1["start_time"] < $task2["end_time"] && $task1["end_time"] > $task2["start_time"])
-                    ```
-                    If any overlapping tasks exist, **continue adjusting their start_time or day_of_week until no conflicts remain**.'],
-
-                    ['role' => 'system', 'content' => '### Cases for Resolving Conflicts:'],
-
-                    ['role' => 'system', 'content' => '1. **When a task (is_recurring = false, is_fixed = false) overlaps with a task (is_recurring = true, is_fixed = true):**  
-                    - The **non-fixed, non-recurring task must be rescheduled**.  
-                    - The new **start_time must be later** than its original start_time.  
-                    - The task must be scheduled **before its deadline**.  
-                    - If the deadline extends across multiple days, **the task can be moved to a later day** within the deadline range.'],
-
-                    ['role' => 'system', 'content' => '2. **When a task (is_recurring = false, is_fixed = false) overlaps with another task (is_recurring = false, is_fixed = false):**  
-                    - Either task can be rescheduled to resolve the conflict.  
-                    - The new **start_time must be later** than its original start_time.  
-                    - The task must be scheduled **before its deadline**.  
-                    - If the deadline allows, **it can be moved to the next available day**.'],
-
-                    ['role' => 'system', 'content' => '3. **When a task (is_recurring = true, is_fixed = false) overlaps with a task (is_recurring = true, is_fixed = true):**  
-                    - The **non-fixed, recurring task must be rescheduled**.  
-                    - It can be moved to a different time on the same day, or another day if needed.  
-                    - If rescheduling to another day, it should **maintain its recurrence pattern** as much as possible.'],
-
-                    ['role' => 'system', 'content' => '4. **When a task (is_recurring = true, is_fixed = false) overlaps with another task (is_recurring = true, is_fixed = false):**  
-                    - The tasks should be adjusted to avoid conflicts while keeping their recurrence patterns.  
-                    - One or both tasks can be rescheduled to a later time on the same day or a different day if necessary.'],
-
-                    ['role' => 'system', 'content' => '### General Rules for Modifications:'],
-
-                    ['role' => 'system', 'content' => '✅ You can modify **start_time, end_time, and day_of_week** for non-fixed tasks as needed.'],
-
-                    ['role' => 'system', 'content' => '❌ If a task has **is_recurring = false** and **is_fixed = false**, **you must not modify its start_time to be earlier than its original value**. You can only reschedule it to a later time if necessary.'],
-
-                    ['role' => 'system', 'content' => '✅ If a task has a **deadline** that spans multiple days, it can be moved to **any available day before the deadline**.'],
-
-                    ['role' => 'system', 'content' => '✅ After making changes, **recheck the entire schedule** to ensure no overlapping tasks remain. Repeat the process until the schedule is fully optimized and conflict-free.'],
-
+                    ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
+                    ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
+                    ['role' => 'system', 'content' => 'If a non-fixed task conflicts with a fixed task, **you must reschedule the non-fixed task** to remove the conflict.'],
+                    ['role' => 'system', 'content' => 'If two non-fixed tasks conflict, **you should adjust one or both of them** to resolve the overlap.'],
+                    ['role' => 'system', 'content' => 'You can modify `start_time`, `end_time`, and `day_of_week` of non-fixed tasks as needed.'],
                     ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
                 ],
                 'functions' => [$functionDefinition],
                 'function_call' => 'auto',
             ]);
+            // $response = $this->openAIClient->chat()->create([
+            //     'model' => 'gpt-4o-2024-08-06',
+            //     'messages' => [
+            //         ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow.'],
+
+            //         ['role' => 'system', 'content' => 'You **must not modify** any task where is_fixed = true.'],
+
+            //         ['role' => 'system', 'content' => 'For tasks with is_fixed = false, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
+
+            //         ['role' => 'system', 'content' => '### Checking for Overlapping Tasks:'],
+
+            //         ['role' => 'system', 'content' => 'You **must always check for overlapping tasks** after making any modifications to ensure no conflicts remain. A conflict is considered overlapping if:  
+            //         ```php
+            //         ($task1["id"] !== $task2["id"] && $task1["start_time"] < $task2["end_time"] && $task1["end_time"] > $task2["start_time"])
+            //         ```
+            //         If any overlapping tasks exist, **continue adjusting their start_time or day_of_week until no conflicts remain**.'],
+
+            //         ['role' => 'system', 'content' => '### Cases for Resolving Conflicts:'],
+
+            //         ['role' => 'system', 'content' => '1. **When a task (is_recurring = false, is_fixed = false) overlaps with a task (is_recurring = true, is_fixed = true):**  
+            //         - The **non-fixed, non-recurring task must be rescheduled**.  
+            //         - The new **start_time must be later** than its original start_time.  
+            //         - The task must be scheduled **before its deadline**.  
+            //         - If the deadline extends across multiple days, **the task can be moved to a later day** within the deadline range.'],
+
+            //         ['role' => 'system', 'content' => '2. **When a task (is_recurring = false, is_fixed = false) overlaps with another task (is_recurring = false, is_fixed = false):**  
+            //         - Either task can be rescheduled to resolve the conflict.  
+            //         - The new **start_time must be later** than its original start_time.  
+            //         - The task must be scheduled **before its deadline**.  
+            //         - If the deadline allows, **it can be moved to the next available day**.'],
+
+            //         ['role' => 'system', 'content' => '3. **When a task (is_recurring = true, is_fixed = false) overlaps with a task (is_recurring = true, is_fixed = true):**  
+            //         - The **non-fixed, recurring task must be rescheduled**.  
+            //         - It can be moved to a different time on the same day, or another day if needed.  
+            //         - If rescheduling to another day, it should **maintain its recurrence pattern** as much as possible.'],
+
+            //         ['role' => 'system', 'content' => '4. **When a task (is_recurring = true, is_fixed = false) overlaps with another task (is_recurring = true, is_fixed = false):**  
+            //         - The tasks should be adjusted to avoid conflicts while keeping their recurrence patterns.  
+            //         - One or both tasks can be rescheduled to a later time on the same day or a different day if necessary.'],
+
+            //         ['role' => 'system', 'content' => '### General Rules for Modifications:'],
+
+            //         ['role' => 'system', 'content' => '✅ You can modify **start_time, end_time, and day_of_week** for non-fixed tasks as needed.'],
+
+            //         ['role' => 'system', 'content' => '❌ If a task has **is_recurring = false** and **is_fixed = false**, **you must not modify its start_time to be earlier than its original value**. You can only reschedule it to a later time if necessary.'],
+
+            //         ['role' => 'system', 'content' => '✅ If a task has a **deadline** that spans multiple days, it can be moved to **any available day before the deadline**.'],
+
+            //         ['role' => 'system', 'content' => '✅ After making changes, **recheck the entire schedule** to ensure no overlapping tasks remain. Repeat the process until the schedule is fully optimized and conflict-free.'],
+
+            //         ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
+            //     ],
+            //     'functions' => [$functionDefinition],
+            //     'function_call' => 'auto',
+            // ]);
 
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
