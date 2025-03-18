@@ -251,8 +251,6 @@ class TaskServiceImplement implements TaskService
             ];
         })->toArray();
 
-        dd($tasksData);
-
         // Define function for AI
         $functionDefinition = [
             'name' => 'schedule_tasks',
