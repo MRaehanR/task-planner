@@ -288,19 +288,12 @@ class TaskServiceImplement implements TaskService
                     ['role' => 'system', 'content' => 'If a non-fixed task conflicts with a fixed task, **you must reschedule the non-fixed task** to remove the conflict.'],
                     ['role' => 'system', 'content' => 'If two non-fixed tasks conflict, **you should adjust one or both of them** to resolve the overlap.'],
                     ['role' => 'system', 'content' => 'You can modify `start_time`, `end_time`, and `day_of_week` of non-fixed tasks as needed.'],
+                    ['role' => 'system', 'content' => 'For non recurring and non fixed task DO NOT change start_time backwards'],
                     ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
                 ],
                 'functions' => [$functionDefinition],
                 'function_call' => 'auto',
             ]);
-            // $response = $this->openAIClient->chat()->create([
-            //     'model' => 'ft:gpt-4o-2024-08-06:personal::BCQOJ2R6',
-            //     'messages' => [
-            //         ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
-            //     ],
-            //     'functions' => [$functionDefinition],
-            //     'function_call' => 'auto',
-            // ]);
 
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
