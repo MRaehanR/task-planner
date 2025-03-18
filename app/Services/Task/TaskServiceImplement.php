@@ -282,11 +282,25 @@ class TaskServiceImplement implements TaskService
             $response = $this->openAIClient->chat()->create([
                 'model' => 'ft:gpt-4o-2024-08-06:personal::BCQOJ2R6',
                 'messages' => [
+                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow.'],
+                    ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
+                    ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
+                    ['role' => 'system', 'content' => 'If a non-fixed task conflicts with a fixed task, **you must reschedule the non-fixed task** to remove the conflict.'],
+                    ['role' => 'system', 'content' => 'If two non-fixed tasks conflict, **you should adjust one or both of them** to resolve the overlap.'],
+                    ['role' => 'system', 'content' => 'You can modify `start_time`, `end_time`, and `day_of_week` of non-fixed tasks as needed.'],
                     ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
                 ],
                 'functions' => [$functionDefinition],
                 'function_call' => 'auto',
             ]);
+            // $response = $this->openAIClient->chat()->create([
+            //     'model' => 'ft:gpt-4o-2024-08-06:personal::BCQOJ2R6',
+            //     'messages' => [
+            //         ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
+            //     ],
+            //     'functions' => [$functionDefinition],
+            //     'function_call' => 'auto',
+            // ]);
 
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
