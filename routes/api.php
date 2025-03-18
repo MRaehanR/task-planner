@@ -7,6 +7,7 @@ use App\Http\Controllers\Task\CreateTaskController;
 use App\Http\Controllers\Task\DeleteTaskByIdController;
 use App\Http\Controllers\Task\GetTaskByIdController;
 use App\Http\Controllers\Task\GetTasksController;
+use App\Http\Controllers\Task\RearrangeTaskByAI;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -32,6 +33,7 @@ Route::middleware('auth:sanctum')->prefix('task')->group(function () {
     Route::get('/{id}', GetTaskByIdController::class);
     Route::post('/', CreateTaskController::class);
     Route::delete('/{id}', DeleteTaskByIdController::class);
+    Route::post('/rearrange', RearrangeTaskByAI::class);
 });
 
 Route::get('/tasktest', function () {

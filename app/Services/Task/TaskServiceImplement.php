@@ -107,9 +107,135 @@ class TaskServiceImplement implements TaskService
     {
         $userId = Auth::user()->id;
 
-        $existingTasks = Task::where('user_id', $userId)->get();
+        try {
+            $task = Task::create([
+                'user_id' => $userId,
+                'title' => $params['title'],
+                'desc' => isset($params['desc']) ? $params['desc'] : null,
+                'day_of_week' => $params['day_of_week'],
+                'start_time' => $params['start_time'],
+                'end_time' => isset($params['end_time']) ? $params['end_time'] : null,
+                'all_day' => $params['all_day'],
+                'is_completed' => isset($params['is_recurring']) ? $params['is_recurring'] : null,
+                'is_recurring' => $params['is_recurring'],
+                'is_fixed' => $params['is_fixed'],
+                'deadline' => isset($params['deadline']) ? $params['deadline'] : null,
+            ]);
 
-        $tasksData = $existingTasks->map(function ($task) {
+            return new TaskDTO(
+                id: $task->id,
+                title: $task->title,
+                desc: $task->desc,
+                day_of_week: $task->day_of_week,
+                start_time: $task->start_time,
+                end_time: $task->end_time,
+                all_day: $task->all_day,
+                is_completed: $task->is_completed,
+                is_recurring: $task->is_recurring,
+                is_fixed: $task->is_fixed,
+                deadline: $task->deadline,
+                start_time_attributes: TaskDTO::parseDateTime($task->start_time),
+                end_time_attributes: TaskDTO::parseDateTime($task->end_time),
+                deadline_attributes: $task->deadline ? TaskDTO::parseDateTime($task->deadline) : null
+            );
+        } catch (\Exception $e) {
+            throw new ResponseException('Invalid response structure: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private function adjustToCurrentWeek($time, $dayOfWeek, $currentDate = null)
+    {
+        $currentDate = Carbon::parse($currentDate) ?? Carbon::now();
+        $currentWeekDay = $currentDate->dayOfWeek;
+        $targetDay = Carbon::parse($dayOfWeek)->dayOfWeek;
+        $daysDifference = $targetDay - $currentWeekDay;
+
+        $adjustedDate = $currentDate->copy()->addDays($daysDifference);
+        $adjustedTime = Carbon::parse($time)->setDate($adjustedDate->year, $adjustedDate->month, $adjustedDate->day);
+
+        return $adjustedTime->toDateTimeString();
+    }
+
+    private function adjustToCurrentMonth($time, $dayOfWeek, $currentDate)
+    {
+        $currentMonth = $currentDate->month;
+        $currentYear = $currentDate->year;
+        $targetDay = Carbon::parse($dayOfWeek)->dayOfWeek;
+
+        // Find the first occurrence of the target day in the current month
+        $adjustedDate = Carbon::create($currentYear, $currentMonth, 1)->next($targetDay);
+
+        // If the adjusted date is before the current date, move to the next occurrence
+        if ($adjustedDate->lessThan($currentDate)) {
+            $adjustedDate->addWeek();
+        }
+
+        $adjustedTime = Carbon::parse($time)->setDate($adjustedDate->year, $adjustedDate->month, $adjustedDate->day);
+
+        return $adjustedTime->toDateTimeString();
+    }
+
+    public function rearrangeByAI(array $params)
+    {
+        $userId = Auth::user()->id;
+        $range = $params['range'];
+        $currentDate = Carbon::parse($params['current_date']);
+        $currentDateForFilter = Carbon::parse($params['current_date']);
+        $now = Carbon::now();
+
+        // Query for regular tasks
+        $regularTasksQuery = Task::where('user_id', $userId)
+            ->where('is_recurring', false);
+
+        // dd($currentDateForFilter->endOfWeek());
+
+        // Filter regular tasks based on the range
+        if ($range === 'day') {
+            $regularTasksQuery->whereDate('start_time', $currentDateForFilter->toDateString());
+        } else if ($range === 'week') {
+            $regularTasksQuery->whereDate('start_time', '>=', $currentDateForFilter->startOfWeek())->whereDate('start_time', '<=', $currentDateForFilter->endOfWeek());;
+        }
+
+        // Get regular tasks
+        $regularTasks = $regularTasksQuery->get();
+
+        // Query for recurring tasks
+        $recurringTasksQuery = Task::where('user_id', $userId)
+            ->where('is_recurring', true);
+
+        // Get recurring tasks
+        $recurringTasks = $recurringTasksQuery->get();
+
+        // Filter tasks based on is_recurring and is_fixed
+        $nonRecurringNonFixedTasks = $regularTasks->filter(function ($task) use ($now) {
+            return !$task->is_fixed && $task->start_time >= $now;
+        });
+
+        $recurringNonFixedTasks = $recurringTasks->filter(function ($task) {
+            return !$task->is_fixed;
+        });
+
+        $recurringFixedTasks = $recurringTasks->filter(function ($task) {
+            return $task->is_fixed;
+        });
+
+        // Adjust recurring fixed tasks to the current week if necessary
+        $adjustedRecurringFixedTasks = $recurringFixedTasks->map(function ($task) use ($currentDate) {
+            // dd(Carbon::parse($task->start_time)->toDateString(), $currentDate->toDateString());
+            if (Carbon::parse($task->start_time)->toDateString() !== $currentDate->toDateString() || Carbon::parse($task->end_time)->toDateString() !== $currentDate->toDateString()) {
+                $task->start_time = $this->adjustToCurrentWeek($task->start_time, $task->day_of_week, $currentDate);
+                $task->end_time = $this->adjustToCurrentWeek($task->end_time, $task->day_of_week, $currentDate);
+            }
+            return $task;
+        });
+
+        // Combine all tasks
+        $allTasks = $nonRecurringNonFixedTasks->merge($recurringNonFixedTasks)->merge($adjustedRecurringFixedTasks);
+
+        // dd($allTasks);
+
+        // Prepare data for AI
+        $tasksData = $allTasks->map(function ($task) {
             return [
                 'id' => $task->id,
                 'title' => $task->title,
@@ -125,20 +251,7 @@ class TaskServiceImplement implements TaskService
             ];
         })->toArray();
 
-        $tasksData[] = [
-            'id' => null,
-            'title' => $params['title'],
-            'desc' => $params['desc'] ?? null,
-            'day_of_week' => $params['day_of_week'],
-            'start_time' => $params['start_time'],
-            'end_time' => $params['end_time'] ?? null,
-            'all_day' => $params['all_day'],
-            'is_completed' => $params['is_completed'] ?? null,
-            'is_recurring' => $params['is_recurring'],
-            'is_fixed' => $params['is_fixed'],
-            'deadline' => $params['deadline'] ?? null,
-        ];
-
+        // Define function for AI
         $functionDefinition = [
             'name' => 'schedule_tasks',
             'description' => 'Schedule tasks efficiently while maintaining the same structure.',
@@ -213,6 +326,22 @@ class TaskServiceImplement implements TaskService
 
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
+            // Validate and revert changes to fixed tasks
+            foreach ($tasksData as $originalTask) {
+                if ($originalTask['is_fixed']) {
+                    foreach ($scheduledTasks as &$scheduledTask) {
+                        if ($scheduledTask['id'] == $originalTask['id']) {
+                            if ($scheduledTask['start_time'] != $originalTask['start_time'] || $scheduledTask['end_time'] != $originalTask['end_time'] || $scheduledTask['day_of_week'] != $originalTask['day_of_week']) {
+                                // Revert changes to fixed tasks
+                                $scheduledTask['start_time'] = $originalTask['start_time'];
+                                $scheduledTask['end_time'] = $originalTask['end_time'];
+                                $scheduledTask['day_of_week'] = $originalTask['day_of_week'];
+                            }
+                        }
+                    }
+                }
+            }
+
             $updatedTasks = [];
             foreach ($scheduledTasks as $scheduledTask) {
                 if ($scheduledTask['id']) {
@@ -240,39 +369,26 @@ class TaskServiceImplement implements TaskService
                 }
             }
 
-            return collect($updatedTasks)->map(function ($task) {
-                return new TaskDTO(
-                    id: $task->id,
-                    title: $task->title,
-                    desc: $task->desc,
-                    day_of_week: $task->day_of_week,
-                    start_time: $task->start_time,
-                    end_time: $task->end_time,
-                    all_day: $task->all_day,
-                    is_completed: $task->is_completed,
-                    is_recurring: $task->is_recurring,
-                    is_fixed: $task->is_fixed,
-                    deadline: $task->deadline,
-                    start_time_attributes: TaskDTO::parseDateTime($task->start_time),
-                    end_time_attributes: TaskDTO::parseDateTime($task->end_time),
-                    deadline_attributes: $task->deadline ? TaskDTO::parseDateTime($task->deadline) : null
-                );
-            });
+            // return collect($updatedTasks)->map(function ($task) {
+            //     return new TaskDTO(
+            //         id: $task->id,
+            //         title: $task->title,
+            //         desc: $task->desc,
+            //         day_of_week: $task->day_of_week,
+            //         start_time: $task->start_time,
+            //         end_time: $task->end_time,
+            //         all_day: $task->all_day,
+            //         is_completed: $task->is_completed,
+            //         is_recurring: $task->is_recurring,
+            //         is_fixed: $task->is_fixed,
+            //         deadline: $task->deadline,
+            //         start_time_attributes: TaskDTO::parseDateTime($task->start_time),
+            //         end_time_attributes: TaskDTO::parseDateTime($task->end_time),
+            //         deadline_attributes: $task->deadline ? TaskDTO::parseDateTime($task->deadline) : null
+            //     );
+            // });
         } catch (\Exception $e) {
             throw new ResponseException('Invalid response structure: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-    }
-
-    private function adjustToCurrentWeek($time, $dayOfWeek, $currentDate = null)
-    {
-        $currentDate = Carbon::parse($currentDate) ?? Carbon::now();
-        $currentWeekDay = $currentDate->dayOfWeek;
-        $targetDay = Carbon::parse($dayOfWeek)->dayOfWeek;
-        $daysDifference = $targetDay - $currentWeekDay;
-
-        $adjustedDate = $currentDate->copy()->addDays($daysDifference);
-        $adjustedTime = Carbon::parse($time)->setDate($adjustedDate->year, $adjustedDate->month, $adjustedDate->day);
-
-        return $adjustedTime->toDateTimeString();
     }
 }
