@@ -36,6 +36,10 @@ class TaskServiceImplement implements TaskService
             $query->where('is_fixed', $params['is_fixed']);
         }
 
+        if (isset($params['is_completed'])) {
+            $query->where('is_completed', $params['is_completed']);
+        }
+
         $tasks = $query->get();
 
         return $tasks->map(function ($task) use ($params) {
@@ -366,5 +370,53 @@ class TaskServiceImplement implements TaskService
         } catch (\Exception $e) {
             throw new ResponseException('Invalid response structure: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    public function updateTaskById(int $id, array $params)
+    {
+        $userId = Auth::user()->id;
+        $taskId = $id;
+
+        // Find the task by ID
+        $task = Task::where('user_id', $userId)->find($taskId);
+
+        if (!$task) {
+            throw new ResponseException('Task Not Found', Response::HTTP_NOT_FOUND);
+        }
+
+        // Update the task with the provided parameters
+        $task->update(array_filter([
+            'title' => $params['title'] ?? null,
+            'desc' => $params['desc'] ?? null,
+            'day_of_week' => $params['day_of_week'] ?? null,
+            'start_time' => $params['start_time'] ?? null,
+            'end_time' => $params['end_time'] ?? null,
+            'all_day' => $params['all_day'] ?? null,
+            'is_completed' => $params['is_completed'] ?? null,
+            'is_recurring' => $params['is_recurring'] ?? null,
+            'is_fixed' => $params['is_fixed'] ?? null,
+            'deadline' => $params['deadline'] ?? null,
+        ]));
+
+        // Return the updated task as a TaskDTO
+        $start_time = $task->is_recurring ? $this->adjustToCurrentWeek($task->start_time, $task->day_of_week) : $task->start_time;
+        $end_time = $task->is_recurring ? $this->adjustToCurrentWeek($task->end_time, $task->day_of_week) : $task->end_time;
+
+        return new TaskDTO(
+            id: $task->id,
+            title: $task->title,
+            desc: $task->desc,
+            day_of_week: $task->day_of_week,
+            start_time: $start_time,
+            end_time: $end_time,
+            all_day: $task->all_day,
+            is_completed: $task->is_completed,
+            is_recurring: $task->is_recurring,
+            is_fixed: $task->is_fixed,
+            deadline: $task->deadline,
+            start_time_attributes: TaskDTO::parseDateTime($start_time),
+            end_time_attributes: TaskDTO::parseDateTime($end_time),
+            deadline_attributes: $task->deadline ? TaskDTO::parseDateTime($task->deadline) : null
+        );
     }
 }

@@ -10,4 +10,5 @@ interface TaskService
     public function deleteTaskById(int $id);
 
     public function rearrangeByAI(array $params);
+    public function updateTaskById(int $id, array $params);
 }
