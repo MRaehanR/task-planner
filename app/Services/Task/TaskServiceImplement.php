@@ -369,24 +369,29 @@ class TaskServiceImplement implements TaskService
                 }
             }
 
-            // return collect($updatedTasks)->map(function ($task) {
-            //     return new TaskDTO(
-            //         id: $task->id,
-            //         title: $task->title,
-            //         desc: $task->desc,
-            //         day_of_week: $task->day_of_week,
-            //         start_time: $task->start_time,
-            //         end_time: $task->end_time,
-            //         all_day: $task->all_day,
-            //         is_completed: $task->is_completed,
-            //         is_recurring: $task->is_recurring,
-            //         is_fixed: $task->is_fixed,
-            //         deadline: $task->deadline,
-            //         start_time_attributes: TaskDTO::parseDateTime($task->start_time),
-            //         end_time_attributes: TaskDTO::parseDateTime($task->end_time),
-            //         deadline_attributes: $task->deadline ? TaskDTO::parseDateTime($task->deadline) : null
-            //     );
-            // });
+            $paramsForGetTasks = [
+                "current_date" => $currentDate,
+            ];
+            $getAllTasks = $this->getTasks($paramsForGetTasks);
+
+            return collect($getAllTasks)->map(function ($task) {
+                return new TaskDTO(
+                    id: $task->id,
+                    title: $task->title,
+                    desc: $task->desc,
+                    day_of_week: $task->day_of_week,
+                    start_time: $task->start_time,
+                    end_time: $task->end_time,
+                    all_day: $task->all_day,
+                    is_completed: $task->is_completed,
+                    is_recurring: $task->is_recurring,
+                    is_fixed: $task->is_fixed,
+                    deadline: $task->deadline,
+                    start_time_attributes: TaskDTO::parseDateTime($task->start_time),
+                    end_time_attributes: TaskDTO::parseDateTime($task->end_time),
+                    deadline_attributes: $task->deadline ? TaskDTO::parseDateTime($task->deadline) : null
+                );
+            });
         } catch (\Exception $e) {
             throw new ResponseException('Invalid response structure: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
