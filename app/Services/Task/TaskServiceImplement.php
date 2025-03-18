@@ -180,20 +180,17 @@ class TaskServiceImplement implements TaskService
         $userId = Auth::user()->id;
         $range = $params['range'];
         $currentDate = Carbon::parse($params['current_date']);
-        $currentDateForFilter = Carbon::parse($params['current_date']);
         $now = Carbon::now();
 
         // Query for regular tasks
         $regularTasksQuery = Task::where('user_id', $userId)
             ->where('is_recurring', false);
 
-        // dd($currentDateForFilter->endOfWeek());
-
         // Filter regular tasks based on the range
         if ($range === 'day') {
-            $regularTasksQuery->whereDate('start_time', $currentDateForFilter->toDateString());
-        } else if ($range === 'week') {
-            $regularTasksQuery->whereDate('start_time', '>=', $currentDateForFilter->startOfWeek())->whereDate('start_time', '<=', $currentDateForFilter->endOfWeek());;
+            $regularTasksQuery->whereDate('start_time', $currentDate->toDateString());
+        } elseif ($range === 'week') {
+            $regularTasksQuery->whereBetween('start_time', [$currentDate->startOfWeek(), $currentDate->endOfWeek()]);
         }
 
         // Get regular tasks
@@ -221,7 +218,6 @@ class TaskServiceImplement implements TaskService
 
         // Adjust recurring fixed tasks to the current week if necessary
         $adjustedRecurringFixedTasks = $recurringFixedTasks->map(function ($task) use ($currentDate) {
-            // dd(Carbon::parse($task->start_time)->toDateString(), $currentDate->toDateString());
             if (Carbon::parse($task->start_time)->toDateString() !== $currentDate->toDateString() || Carbon::parse($task->end_time)->toDateString() !== $currentDate->toDateString()) {
                 $task->start_time = $this->adjustToCurrentWeek($task->start_time, $task->day_of_week, $currentDate);
                 $task->end_time = $this->adjustToCurrentWeek($task->end_time, $task->day_of_week, $currentDate);
@@ -231,8 +227,6 @@ class TaskServiceImplement implements TaskService
 
         // Combine all tasks
         $allTasks = $nonRecurringNonFixedTasks->merge($recurringNonFixedTasks)->merge($adjustedRecurringFixedTasks);
-
-        // dd($allTasks);
 
         // Prepare data for AI
         $tasksData = $allTasks->map(function ($task) {
@@ -282,69 +276,76 @@ class TaskServiceImplement implements TaskService
         ];
 
         try {
-            $response = $this->openAIClient->chat()->create([
-                'model' => 'gpt-4o-2024-08-06',
-                'messages' => [
-                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow.'],
+            $scheduledTasks = [];
+            $overlappingTasks = true;
 
-                    ['role' => 'system', 'content' => 'You **must not modify** any task where is_fixed = true.'],
+            while ($overlappingTasks) {
+                $response = $this->openAIClient->chat()->create([
+                    'model' => 'gpt-4o-2024-08-06',
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow.'],
 
-                    ['role' => 'system', 'content' => 'For tasks with is_fixed = false, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
+                        ['role' => 'system', 'content' => 'You **must not modify** any task where is_fixed = true.'],
 
-                    ['role' => 'system', 'content' => '### Cases for Resolving Conflicts:'],
+                        ['role' => 'system', 'content' => 'For tasks with is_fixed = false, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
 
-                    ['role' => 'system', 'content' => '1. **When a task (is_recurring = false, is_fixed = false) overlaps with a task (is_recurring = true, is_fixed = true):**  
+                        ['role' => 'system', 'content' => '### Cases for Resolving Conflicts:'],
+
+                        ['role' => 'system', 'content' => '1. **When a task (is_recurring = false, is_fixed = false) overlaps with a task (is_recurring = true, is_fixed = true):**  
                         - The **non-fixed, non-recurring task must be rescheduled**.  
                         - The new **start_time must be later** than its original start_time.  
                         - The task must be scheduled **before its deadline**.  
                         - If the deadline extends across multiple days, **the task can be moved to a later day** within the deadline range.'],
 
-                    ['role' => 'system', 'content' => '2. **When a task (is_recurring = false, is_fixed = false) overlaps with another task (is_recurring = false, is_fixed = false):**  
+                        ['role' => 'system', 'content' => '2. **When a task (is_recurring = false, is_fixed = false) overlaps with another task (is_recurring = false, is_fixed = false):**  
                         - Either task can be rescheduled to resolve the conflict.  
                         - The new **start_time must be later** than its original start_time.  
                         - The task must be scheduled **before its deadline**.  
                         - If the deadline allows, **it can be moved to the next available day**.'],
 
-                    ['role' => 'system', 'content' => '3. **When a task (is_recurring = true, is_fixed = false) overlaps with a task (is_recurring = true, is_fixed = true):**  
+                        ['role' => 'system', 'content' => '3. **When a task (is_recurring = true, is_fixed = false) overlaps with a task (is_recurring = true, is_fixed = true):**  
                         - The **non-fixed, recurring task must be rescheduled**.  
                         - It can be moved to a different time on the same day, or another day if needed.  
                         - If rescheduling to another day, it should **maintain its recurrence pattern** as much as possible.'],
 
-                    ['role' => 'system', 'content' => '4. **When a task (is_recurring = true, is_fixed = false) overlaps with another task (is_recurring = true, is_fixed = false):**  
+                        ['role' => 'system', 'content' => '4. **When a task (is_recurring = true, is_fixed = false) overlaps with another task (is_recurring = true, is_fixed = false):**  
                         - The tasks should be adjusted to avoid conflicts while keeping their recurrence patterns.  
                         - One or both tasks can be rescheduled to a later time on the same day or a different day if necessary.'],
 
-                    ['role' => 'system', 'content' => '### General Rules for Modifications:'],
+                        ['role' => 'system', 'content' => '### General Rules for Modifications:'],
 
-                    ['role' => 'system', 'content' => '✅ You can modify **start_time, end_time, and day_of_week** for non-fixed tasks as needed.'],
+                        ['role' => 'system', 'content' => '✅ You can modify **start_time, end_time, and day_of_week** for non-fixed tasks as needed.'],
 
-                    ['role' => 'system', 'content' => '❌ If a task has **is_recurring = false** and **is_fixed = false**, **you must not modify its start_time to be earlier than its original value**. You can only reschedule it to a later time if necessary.'],
+                        ['role' => 'system', 'content' => '❌ If a task has **is_recurring = false** and **is_fixed = false**, **you must not modify its start_time to be earlier than its original value**. You can only reschedule it to a later time if necessary.'],
 
-                    ['role' => 'system', 'content' => '✅ If a task has a **deadline** that spans multiple days, it can be moved to **any available day before the deadline**.'],
+                        ['role' => 'system', 'content' => '✅ If a task has a **deadline** that spans multiple days, it can be moved to **any available day before the deadline**.'],
 
-                    ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
-                ],
-                'functions' => [$functionDefinition],
-                'function_call' => 'auto',
-            ]);
+                        ['role' => 'user', 'content' => json_encode(['tasks' => $tasksData])],
+                    ],
+                    'functions' => [$functionDefinition],
+                    'function_call' => 'auto',
+                ]);
 
+                $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
-            $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
-
-            // Validate and revert changes to fixed tasks
-            foreach ($tasksData as $originalTask) {
-                if ($originalTask['is_fixed']) {
-                    foreach ($scheduledTasks as &$scheduledTask) {
-                        if ($scheduledTask['id'] == $originalTask['id']) {
-                            if ($scheduledTask['start_time'] != $originalTask['start_time'] || $scheduledTask['end_time'] != $originalTask['end_time'] || $scheduledTask['day_of_week'] != $originalTask['day_of_week']) {
-                                // Revert changes to fixed tasks
-                                $scheduledTask['start_time'] = $originalTask['start_time'];
-                                $scheduledTask['end_time'] = $originalTask['end_time'];
-                                $scheduledTask['day_of_week'] = $originalTask['day_of_week'];
+                // Validate and revert changes to fixed tasks
+                foreach ($tasksData as $originalTask) {
+                    if ($originalTask['is_fixed']) {
+                        foreach ($scheduledTasks as &$scheduledTask) {
+                            if ($scheduledTask['id'] == $originalTask['id']) {
+                                if ($scheduledTask['start_time'] != $originalTask['start_time'] || $scheduledTask['end_time'] != $originalTask['end_time'] || $scheduledTask['day_of_week'] != $originalTask['day_of_week']) {
+                                    // Revert changes to fixed tasks
+                                    $scheduledTask['start_time'] = $originalTask['start_time'];
+                                    $scheduledTask['end_time'] = $originalTask['end_time'];
+                                    $scheduledTask['day_of_week'] = $originalTask['day_of_week'];
+                                }
                             }
                         }
                     }
                 }
+
+                // Check for overlapping tasks
+                $overlappingTasks = $this->checkForOverlappingTasks($scheduledTasks);
             }
 
             $updatedTasks = [];
@@ -374,12 +375,7 @@ class TaskServiceImplement implements TaskService
                 }
             }
 
-            $paramsForGetTasks = [
-                "current_date" => $currentDate,
-            ];
-            $getAllTasks = $this->getTasks($paramsForGetTasks);
-
-            return collect($getAllTasks)->map(function ($task) {
+            return collect($updatedTasks)->map(function ($task) {
                 return new TaskDTO(
                     id: $task->id,
                     title: $task->title,
@@ -400,5 +396,17 @@ class TaskServiceImplement implements TaskService
         } catch (\Exception $e) {
             throw new ResponseException('Invalid response structure: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private function checkForOverlappingTasks($tasks)
+    {
+        foreach ($tasks as $task1) {
+            foreach ($tasks as $task2) {
+                if ($task1['id'] !== $task2['id'] && $task1['start_time'] < $task2['end_time'] && $task1['end_time'] > $task2['start_time']) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
