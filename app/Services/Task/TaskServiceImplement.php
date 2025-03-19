@@ -299,8 +299,10 @@ class TaskServiceImplement implements TaskService
                 // 'model' => 'ft:gpt-4o-2024-08-06:personal::BCQOJ2R6',
                 'model' => 'gpt-4o-2024-08-06',
                 'messages' => [
+                    // ['role' => 'system', 'content' => 'Hello there'],
                     ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized or recreate the schedules that differents from previous schedules, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow. **returns in valid JSON**'],
                     ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
+                    ['role' => 'system', 'content' => 'DO NOT CHANGE start_time and end_time format`.'],
                     ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
                     ['role' => 'system', 'content' => 'For non recurring and non fixed task DO NOT change start_time backwards'],
                     ['role' => 'system', 'content' => 'If a non-fixed task conflicts with a fixed task, **you must reschedule the non-fixed task** to remove the conflict.'],
@@ -318,20 +320,20 @@ class TaskServiceImplement implements TaskService
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
             // Validate and revert changes to fixed tasks
-            foreach ($tasksData as $originalTask) {
-                if ($originalTask['is_fixed']) {
-                    foreach ($scheduledTasks as &$scheduledTask) {
-                        if ($scheduledTask['id'] == $originalTask['id']) {
-                            if ($scheduledTask['start_time'] != $originalTask['start_time'] || $scheduledTask['end_time'] != $originalTask['end_time'] || $scheduledTask['day_of_week'] != $originalTask['day_of_week']) {
-                                // Revert changes to fixed tasks
-                                $scheduledTask['start_time'] = $originalTask['start_time'];
-                                $scheduledTask['end_time'] = $originalTask['end_time'];
-                                $scheduledTask['day_of_week'] = $originalTask['day_of_week'];
-                            }
-                        }
-                    }
-                }
-            }
+            // foreach ($tasksData as $originalTask) {
+            //     if ($originalTask['is_fixed']) {
+            //         foreach ($scheduledTasks as &$scheduledTask) {
+            //             if ($scheduledTask['id'] == $originalTask['id']) {
+            //                 if ($scheduledTask['start_time'] != $originalTask['start_time'] || $scheduledTask['end_time'] != $originalTask['end_time'] || $scheduledTask['day_of_week'] != $originalTask['day_of_week']) {
+            //                     // Revert changes to fixed tasks
+            //                     $scheduledTask['start_time'] = $originalTask['start_time'];
+            //                     $scheduledTask['end_time'] = $originalTask['end_time'];
+            //                     $scheduledTask['day_of_week'] = $originalTask['day_of_week'];
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
 
             foreach ($scheduledTasks as $scheduledTask) {
                 if ($scheduledTask['id']) {
@@ -341,6 +343,7 @@ class TaskServiceImplement implements TaskService
                         'end_time' => $scheduledTask['end_time'],
                     ]);
                     $updatedTasks[] = Task::find($scheduledTask['id']);
+                    // dd('ID');
                 } else {
                     $task = Task::create([
                         'user_id' => $userId,
