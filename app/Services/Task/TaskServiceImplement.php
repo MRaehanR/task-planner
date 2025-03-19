@@ -305,6 +305,7 @@ class TaskServiceImplement implements TaskService
                     ['role' => 'system', 'content' => 'You have to prioritize tasks that have near deadline.'],
                     ['role' => 'system', 'content' => 'You have to give more space between task for better time management and not make overwhelmed.'],
                     ['role' => 'system', 'content' => 'DO NOT CHANGE start_time and end_time format`.'],
+                    ['role' => 'system', 'content' => 'DO NOT CHANGE start_time before now time`.'],
                     ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
                     ['role' => 'system', 'content' => 'For non recurring and non fixed task DO NOT change start_time backwards'],
                     ['role' => 'system', 'content' => 'If a non-fixed task conflicts with a fixed task, **you must reschedule the non-fixed task** to remove the conflict.'],
