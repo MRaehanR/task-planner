@@ -18,4 +18,12 @@ class Task extends Model
         'is_recurring' => 'boolean',
         'is_fixed' => 'boolean',
     ];
+
+    /**
+     * Get the user that owns the task.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

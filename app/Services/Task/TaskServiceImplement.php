@@ -9,14 +9,18 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 use OpenAI\Client as OpenAIClient;
+use App\Services\Notification\WhatsAppNotificationService;
+use Illuminate\Support\Facades\Log;
 
 class TaskServiceImplement implements TaskService
 {
     protected $openAIClient;
+    protected $whatsAppNotificationService;
 
-    public function __construct(OpenAIClient $openAIClient)
+    public function __construct(OpenAIClient $openAIClient, WhatsAppNotificationService $whatsAppNotificationService)
     {
         $this->openAIClient = $openAIClient;
+        $this->whatsAppNotificationService = $whatsAppNotificationService;
     }
 
     public function getTasks(array $params = [])
@@ -419,4 +423,26 @@ class TaskServiceImplement implements TaskService
             deadline_attributes: $task->deadline ? TaskDTO::parseDateTime($task->deadline) : null
         );
     }
+
+    // public function scheduleTaskNotifications()
+    // {
+    //     Log::info('scheduleTaskNotifications method called.');
+
+    //     $tasks = Task::where('user_id', Auth::user()->id)
+    //         ->where('start_time', '>', Carbon::now())
+    //         ->get();
+
+    //     Log::info('Tasks found: ', ['tasks' => $tasks]);
+
+    //     foreach ($tasks as $task) {
+    //         $delay = Carbon::parse($task->start_time)->diffInSeconds(Carbon::now());
+    //         $userPhoneNumber = Auth::user()->phone_number; // Assuming the user's phone number is stored in the user model
+
+    //         if ($delay > 0) {
+    //             $message = "Reminder: Your task '{$task->title}' is scheduled to start at {$task->start_time}.";
+    //             Log::info('Sending WhatsApp message: ', ['phone' => $userPhoneNumber, 'message' => $message]);
+    //             $this->whatsAppNotificationService->sendWhatsAppMessage($userPhoneNumber, $message);
+    //         }
+    //     }
+    // }
 }
