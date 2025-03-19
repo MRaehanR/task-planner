@@ -290,7 +290,7 @@ class TaskServiceImplement implements TaskService
             $response = $this->openAIClient->chat()->create([
                 'model' => 'ft:gpt-4o-2024-08-06:personal::BCQOJ2R6',
                 'messages' => [
-                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized or recreate the schedules that differents from previous schedules, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow.'],
+                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized or **recreate the schedules that differents from previous schedules**, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow.'],
                     ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
                     ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
                     ['role' => 'system', 'content' => 'For non recurring and non fixed task DO NOT change start_time backwards'],
