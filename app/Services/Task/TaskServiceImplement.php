@@ -302,6 +302,8 @@ class TaskServiceImplement implements TaskService
                     // ['role' => 'system', 'content' => 'Hello there'],
                     ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized or recreate the schedules that differents from previous schedules, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow. **returns in valid JSON**'],
                     ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
+                    ['role' => 'system', 'content' => 'You have to prioritize tasks that have near deadline.'],
+                    ['role' => 'system', 'content' => 'You have to give more space between task for better time management and not make overwhelmed.'],
                     ['role' => 'system', 'content' => 'DO NOT CHANGE start_time and end_time format`.'],
                     ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
                     ['role' => 'system', 'content' => 'For non recurring and non fixed task DO NOT change start_time backwards'],
