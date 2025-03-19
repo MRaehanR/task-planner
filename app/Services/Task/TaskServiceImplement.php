@@ -205,6 +205,8 @@ class TaskServiceImplement implements TaskService
         // Get regular tasks
         $regularTasks = $regularTasksQuery->get();
 
+        // dd($regularTasks);
+
         // Query for recurring tasks
         $recurringTasksQuery = Task::where('user_id', $userId)
             ->where('is_recurring', true);
@@ -212,9 +214,12 @@ class TaskServiceImplement implements TaskService
         // Get recurring tasks
         $recurringTasks = $recurringTasksQuery->get();
 
+        // dd($recurringTasks);
+
         // Filter tasks based on is_recurring and is_fixed
         $nonRecurringNonFixedTasks = $regularTasks->filter(function ($task) use ($now) {
-            return !$task->is_fixed && $task->start_time >= $now;
+            return !$task->is_fixed;
+            // return !$task->is_fixed && $task->start_time >= $now;
         });
 
         $recurringNonFixedTasks = $recurringTasks->filter(function ($task) {
@@ -238,6 +243,7 @@ class TaskServiceImplement implements TaskService
         // Combine all tasks
         $allTasks = $nonRecurringNonFixedTasks->merge($recurringNonFixedTasks)->merge($adjustedRecurringFixedTasks);
 
+        // dd($allTasks);
 
         // Prepare data for AI
         $tasksData = $allTasks->map(function ($task) {
@@ -255,6 +261,8 @@ class TaskServiceImplement implements TaskService
                 'deadline' => $task->deadline,
             ];
         })->toArray();
+
+        // dd($tasksData);
 
         // Define function for AI
         $functionDefinition = [
@@ -288,9 +296,10 @@ class TaskServiceImplement implements TaskService
 
         try {
             $response = $this->openAIClient->chat()->create([
-                'model' => 'ft:gpt-4o-2024-08-06:personal::BCQOJ2R6',
+                // 'model' => 'ft:gpt-4o-2024-08-06:personal::BCQOJ2R6',
+                'model' => 'gpt-4o-2024-08-06',
                 'messages' => [
-                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized or **recreate the schedules that differents from previous schedules**, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow.'],
+                    ['role' => 'system', 'content' => 'You are an AI scheduling assistant that creates an optimized or recreate the schedules that differents from previous schedules, conflict-free, and well-balanced schedule for the user. Your goal is to avoid task overload, prevent overlapping, and ensure a smooth workflow. **returns in valid JSON**'],
                     ['role' => 'system', 'content' => 'You **must not modify** any task where `is_fixed = true`.'],
                     ['role' => 'system', 'content' => 'For tasks with `is_fixed = false`, you have the flexibility to adjust their timing to resolve conflicts and improve the overall schedule.'],
                     ['role' => 'system', 'content' => 'For non recurring and non fixed task DO NOT change start_time backwards'],
@@ -303,6 +312,8 @@ class TaskServiceImplement implements TaskService
                 'functions' => [$functionDefinition],
                 'function_call' => 'auto',
             ]);
+
+            // dd($response->choices[0]->message);
 
             $scheduledTasks = json_decode($response->choices[0]->message->functionCall->arguments, true)['tasks'];
 
