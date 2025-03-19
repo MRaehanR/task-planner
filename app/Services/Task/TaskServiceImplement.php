@@ -124,7 +124,7 @@ class TaskServiceImplement implements TaskService
                 'start_time' => $params['start_time'],
                 'end_time' => isset($params['end_time']) ? $params['end_time'] : null,
                 'all_day' => $params['all_day'],
-                'is_completed' => isset($params['is_recurring']) ? $params['is_recurring'] : null,
+                'is_completed' => isset($params['is_completed']) ? $params['is_completed'] : null,
                 'is_recurring' => $params['is_recurring'],
                 'is_fixed' => $params['is_fixed'],
                 'deadline' => isset($params['deadline']) ? $params['deadline'] : null,
